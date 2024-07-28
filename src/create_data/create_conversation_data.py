@@ -9,6 +9,7 @@ import aiohttp
 import tempfile
 import logging
 from tqdm.asyncio import tqdm
+import random
 
 configurations = utils.read_env_file()
 
@@ -24,7 +25,7 @@ def sentence_tokenize(text):
 def word_count(text):
     return len(text.split())
 
-def chunk_text(file_path, chunk_size=1024):
+def chunk_text(file_path, chunk_size=2048):
     logging.info(f"Chunking text from {file_path}")
     with open(file_path, 'r', encoding='utf-8') as file:
         text = file.read()
@@ -58,6 +59,9 @@ async def process_chunk(chunk, system_prompt, user_prompt, session, model):
             "max_tokens": 4096,
         }) as response:
             result = await response.json()
+            # write to teemp file
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, dir=os.path.join(configurations["DATA_ROOT"], 'tempdata')) as temp:
+                temp.write(result['choices'][0]['message']['content'])
             return result['choices'][0]['message']['content']
     except Exception as e:
         logging.error(f"Error processing chunk: {e}")
@@ -73,7 +77,8 @@ async def main():
     system_prompt = utils.read_text_file(os.path.join(configurations["DATA_ROOT"], "prompts", "qa_generation_system_prompt.txt"))
     user_prompt = utils.read_text_file(os.path.join(configurations["DATA_ROOT"], "prompts", "qa_generation_user_prompt.txt"))
     model = configurations["DATAGEN_MODEL"]
-    chunks = chunks[:100]  # For testing, remove this line for full processing
+    # shuffle the dataset
+    random.shuffle(chunks)
     
     async with aiohttp.ClientSession(headers={"Authorization": f"Bearer {configurations['OPENAI_API_KEY']}"}) as session:
         tasks = [process_chunk(chunk, system_prompt, user_prompt, session, model) for chunk in chunks]
@@ -83,7 +88,7 @@ async def main():
             answers.append(answer)
     
     output_file = os.path.join(configurations["DATA_ROOT"], "generated_data", "qa_pairs.txt")
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, 'a', encoding='utf-8') as f:
         for answer in answers:
             if answer:  # Only write non-empty answers
                 f.write(answer + "\n\n")
