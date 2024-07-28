@@ -17,6 +17,20 @@ def read_json_file(file_path):
         data = json.load(f)
     return data
 
+def read_text_file(file_path):
+    with open(file_path, 'r') as f:
+        data = f.read()
+    return data
+
+def get_all_txt_files_in_dirs_and_subdirs(dir_path):
+    import os
+    txt_files = []
+    for root, dirs, files in os.walk(dir_path):
+        for file in files:
+            if file.endswith('.txt'):
+                txt_files.append(os.path.join(root, file))
+    return txt_files
+
 def write_json_file(file_path, data):
     with open(file_path, 'w') as f:
         json.dump(data, f, indent=4)
